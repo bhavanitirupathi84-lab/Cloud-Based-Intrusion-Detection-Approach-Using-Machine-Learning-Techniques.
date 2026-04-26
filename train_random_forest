@@ -1,0 +1,172 @@
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    classification_report,
+    confusion_matrix
+)
+import pickle
+import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+# Category names
+CATEGORY_NAMES = [
+    'Normal',
+    'Brute Force',
+    'Data Exfiltration',
+    'Geo Anomaly',
+    'Privilege Escalation',
+    'Insider Threat'
+]
+
+import os
+import numpy as np
+
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
+def load_data():
+    print("\nLOADING DATA")
+    data_path = os.path.join(BASE_DIR, "notebooks", "data")
+
+    X_train = np.load(os.path.join(data_path, "X_train.npy"))
+    y_train = np.load(os.path.join(data_path, "y_train.npy"))
+    X_test = np.load(os.path.join(data_path, "X_test.npy"))
+    y_test = np.load(os.path.join(data_path, "y_test.npy"))
+
+    with open(os.path.join(data_path, "feature_names.txt"), "r") as f:
+        feature_names = f.read().strip().split("\n")
+
+    return X_train, y_train, X_test, y_test, feature_names
+    
+def analyze_class_distribution(y_train, y_test):
+    print("\n" + "="*70)
+    print("CLASS DISTRIBUTION ANALYSIS")
+    print("="*70)
+
+    print("\nTraining Set:")
+    for i, name in enumerate(CATEGORY_NAMES):
+        count = np.sum(y_train == i)
+        pct = count / len(y_train) * 100
+        print(f"  {i}: {name:20s} - {count:7,d} ({pct:5.2f}%)")
+
+    print("\nTest Set:")
+    for i, name in enumerate(CATEGORY_NAMES):
+        count = np.sum(y_test == i)
+        pct = count / len(y_test) * 100
+        print(f"  {i}: {name:20s} - {count:6,d} ({pct:5.2f}%)")
+
+
+def train_model(X_train, y_train):
+    print("\n" + "="*70)
+    print("TRAINING RANDOM FOREST")
+    print("="*70)
+
+    model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=15,
+        min_samples_split=5,
+        min_samples_leaf=2,
+        class_weight='balanced',
+        random_state=42,
+        n_jobs=-1,
+        verbose=1
+    )
+
+    model.fit(X_train, y_train)
+    print("\n  ✓ Training complete!")
+    return model
+
+
+def evaluate_model(model, X_test, y_test):
+    print("\n" + "="*70)
+    print("EVALUATING MODEL")
+    print("="*70)
+
+    y_pred = model.predict(X_test)
+
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+    recall = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+    f1 = f1_score(y_test, y_pred, average='weighted', zero_division=0)
+
+    print(f"\nAccuracy:  {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall:    {recall:.4f}")
+    print(f"F1-Score:  {f1:.4f}")
+
+    cm = confusion_matrix(y_test, y_pred)
+    return accuracy, precision, recall, f1, cm
+
+
+def plot_results(cm, feature_importance, feature_names):
+    print("\n" + "="*70)
+    print("CREATING VISUALIZATIONS")
+    print("="*70)
+
+    os.makedirs('data/results', exist_ok=True)
+
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='YlOrRd',
+                xticklabels=CATEGORY_NAMES,
+                yticklabels=CATEGORY_NAMES)
+    plt.title('Confusion Matrix')
+    plt.savefig('data/results/confusion_matrix.png', dpi=300)
+    plt.close()
+
+    importance_df = pd.DataFrame({
+        'Feature': feature_names,
+        'Importance': feature_importance
+    }).sort_values('Importance', ascending=False)
+
+    plt.figure(figsize=(10, 8))
+    plt.barh(range(len(importance_df)), importance_df['Importance'])
+    plt.yticks(range(len(importance_df)), importance_df['Feature'])
+    plt.gca().invert_yaxis()
+    plt.title('Feature Importance')
+    plt.savefig('data/results/feature_importance.png', dpi=300)
+    plt.close()
+
+
+def save_model(model, filepath='models/random_forest.pkl'):
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+    with open(filepath, 'wb') as f:
+        pickle.dump(model, f)
+
+    print(f"\n  ✓ Model saved at {filepath}")
+
+
+def main():
+    print("\n" + "="*70)
+    print("RANDOM FOREST TRAINING PIPELINE")
+    print("="*70)
+
+    X_train, y_train, X_test, y_test, features = load_data()
+
+    analyze_class_distribution(y_train, y_test)
+
+    model = train_model(X_train, y_train)
+
+    acc, prec, rec, f1, cm = evaluate_model(model, X_test, y_test)
+
+    plot_results(cm, model.feature_importances_, features)
+
+    save_model(model)
+
+    print("\n" + "="*70)
+    print("✓ TRAINING COMPLETE")
+    print("="*70)
+
+    print(f"\nFinal Accuracy: {acc*100:.2f}%")
+    print(f"Final F1-Score: {f1*100:.2f}%")
+
+    return model
+
+
+if __name__ == "__main__":
+    model = main()
