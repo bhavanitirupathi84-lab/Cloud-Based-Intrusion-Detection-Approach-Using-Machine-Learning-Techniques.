@@ -178,8 +178,8 @@ def load_data():
     else:
         train_df, test_df = _generate_synthetic()
 
-    print(f"  ✓ Training samples : {len(train_df):,}")
-    print(f"  ✓ Test samples     : {len(test_df):,}")
+    print(f"   Training samples : {len(train_df):,}")
+    print(f"   Test samples     : {len(test_df):,}")
     return train_df, test_df
 
 
@@ -231,8 +231,8 @@ def preprocess_pipeline(train_df, test_df):
     X_test  = scaler.transform(test_df[SELECTED_FEATURES].values)
     y_test  = test_df["attack_category"].values
 
-    print(f"  ✓ X_train shape : {X_train.shape}")
-    print(f"  ✓ X_test  shape : {X_test.shape}")
+    print(f"   X_train shape : {X_train.shape}")
+    print(f"   X_test  shape : {X_test.shape}")
 
     print("\n  Class distribution (training):")
     for i, name in enumerate(CATEGORY_NAMES):
@@ -300,7 +300,7 @@ def train_random_forest(X_train, y_train):
         verbose=0,
     )
     rf.fit(X_train, y_train)
-    print("  ✓ Random Forest trained!")
+    print("   Random Forest trained!")
     return rf
 
 
